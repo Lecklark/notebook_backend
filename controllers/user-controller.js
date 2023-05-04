@@ -1,15 +1,7 @@
 const ApiError = require('../error/api-error');
 const { User } = require('../models/models');
 const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-
-const generateJwt = (id, email) => {
-  return jwt.sign(
-    {id, email},
-    process.env.SECRET_KEY,
-    {expiresIn:'24h'}
-  )
-}
+const tokenService = require('../service/token-service');
 
 class UserController {
   async registration(req, res, next) {
@@ -23,8 +15,9 @@ class UserController {
     }
     const hashPassword = await bcrypt.hash(password, 5);
     const user = await User.create({email, password: hashPassword});
-    const token = generateJwt(user.id, email);
-    return res.json({token})
+    const tokens = tokenService.generateTokens({id: user.id, email: email})
+    res.cookie('refreshToken', tokens.refreshToken, {maxAge: 30 * 24 * 60 * 60 * 1000, httpOnly: true})
+    return res.json(tokens)
   }
 
   async login(req, res, next) {
@@ -37,13 +30,23 @@ class UserController {
     if (!comparePassword) {
       return next(ApiError.badRequest('Указан неверный пароль'))
     }
-    const token = generateJwt(user.id, user.email);
-    return res.json({token});
+    const tokens = tokenService.generateTokens({id: user.id, email: email})
+    res.cookie('refreshToken', tokens.refreshToken, {maxAge: 30 * 24 * 60 * 60 * 1000, httpOnly: true})
+    return res.json(tokens);
   }
 
-  async check(req, res, next) {
-    const token = generateJwt(req.user.id, req.user.email);
-    return res.json({token});
+  async refresh(req, res, next) {
+    const refreshToken = req.cookies?.refreshToken;
+    if (!refreshToken) {
+      return next(ApiError.unauthorizedError())
+    }
+    const userData = tokenService.validateRefreshToken(refreshToken);
+    if (!userData) {
+      return next(ApiError.unauthorizedError())
+    }
+    const tokens = tokenService.generateTokens({id: userData.id, email: userData.email})
+    res.cookie('refreshToken', tokens.refreshToken, {maxAge: 30 * 24 * 60 * 60 * 1000, httpOnly: true})
+    return res.json(tokens);
   }
 }
 
