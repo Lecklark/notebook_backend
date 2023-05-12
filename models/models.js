@@ -12,6 +12,7 @@ const Contact = sequelize.define('contact', {
   fullName: {type: DataTypes.STRING},
   address: {type: DataTypes.STRING},
   email: {type: DataTypes.STRING},
+  phone: {type: DataTypes.STRING}
 });
 
 User.hasMany(Contact);

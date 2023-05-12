@@ -16,7 +16,6 @@ class UserController {
     const hashPassword = await bcrypt.hash(password, 5);
     const user = await User.create({email, password: hashPassword});
     const tokens = tokenService.generateTokens({id: user.id, email: email})
-    res.cookie('refreshToken', tokens.refreshToken, {maxAge: 30 * 24 * 60 * 60 * 1000, httpOnly: true})
     return res.json(tokens)
   }
 
@@ -31,12 +30,11 @@ class UserController {
       return next(ApiError.badRequest('Указан неверный пароль'))
     }
     const tokens = tokenService.generateTokens({id: user.id, email: email})
-    res.cookie('refreshToken', tokens.refreshToken, {maxAge: 30 * 24 * 60 * 60 * 1000, httpOnly: true})
     return res.json(tokens);
   }
 
   async refresh(req, res, next) {
-    const refreshToken = req.cookies?.refreshToken;
+    const {refreshToken} = req.body;
     if (!refreshToken) {
       return next(ApiError.unauthorizedError())
     }
@@ -45,7 +43,6 @@ class UserController {
       return next(ApiError.unauthorizedError())
     }
     const tokens = tokenService.generateTokens({id: userData.id, email: userData.email})
-    res.cookie('refreshToken', tokens.refreshToken, {maxAge: 30 * 24 * 60 * 60 * 1000, httpOnly: true})
     return res.json(tokens);
   }
 }
