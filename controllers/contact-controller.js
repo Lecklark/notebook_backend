@@ -1,4 +1,5 @@
 const {Contact} = require('../models/models')
+const { Op } = require("sequelize");
 
 class ContactController {
   async create(req, res) {
@@ -10,7 +11,23 @@ class ContactController {
 
   async getAll(req, res) {
     const {id} = req.user;
-    const contacts = await Contact.findAll({where: {userId: id}})
+    const {search} = req.query;
+    let contacts;
+
+    if (search) {
+      const searchKeys = ['fullName', 'phone', 'address', 'email'];
+      const searchOptions = searchKeys.map(key=>({ [key]:{ [Op.like]: `%${search}%`}} ));
+      const options = {
+        where: {
+          userId: id,
+          [Op.or]: searchOptions
+        }
+      }
+      contacts = await Contact.findAll(options)
+    } else {
+      contacts = await Contact.findAll({where: {userId: id}})
+    }
+
     return res.json(contacts);
   }
 
